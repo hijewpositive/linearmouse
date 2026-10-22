@@ -48,6 +48,13 @@ final class ButtonActionExecutor {
     let runtimeState: RuntimeState
     private let repeatTimingProvider: RepeatTimingProvider
     private let scheduleTimer: TimerScheduler
+    private let postGestureEvent: (CGEvent) -> Void
+    private let schedulePinchZoomEnd: TimerScheduler
+    // Gesture dispatch and its idle timer are confined to the main queue.
+    private var pinchZoomEndTimer: TimerToken?
+    private var pinchZoomBegan = false
+    private var pinchZoomGeneration: UInt64 = 0
+    private var pinchZoomTarget: String?
 
     private static let defaultKeySimulator = KeySimulator()
     let keySimulator: KeySimulating
@@ -57,6 +64,8 @@ final class ButtonActionExecutor {
         runtimeState: RuntimeState = .init(),
         keySimulator: KeySimulating? = nil,
         repeatTimingProvider: @escaping RepeatTimingProvider = ButtonActionExecutor.systemRepeatTimings,
+        postGestureEvent: @escaping (CGEvent) -> Void = { $0.post(tap: .cgSessionEventTap) },
+        schedulePinchZoomEnd: @escaping TimerScheduler = ButtonActionExecutor.scheduleMainThreadTimer,
         scheduleTimer: @escaping TimerScheduler = ButtonActionExecutor.scheduleEventThreadTimer
     ) {
         self.universalBackForward = universalBackForward
@@ -64,6 +73,18 @@ final class ButtonActionExecutor {
         self.keySimulator = keySimulator ?? Self.defaultKeySimulator
         self.repeatTimingProvider = repeatTimingProvider
         self.scheduleTimer = scheduleTimer
+        self.postGestureEvent = postGestureEvent
+        self.schedulePinchZoomEnd = schedulePinchZoomEnd
+    }
+
+    private static func scheduleMainThreadTimer(
+        interval: TimeInterval,
+        repeats: Bool,
+        handler: @escaping () -> Void
+    ) -> TimerToken? {
+        let timer = Timer(timeInterval: interval, repeats: repeats) { _ in handler() }
+        RunLoop.main.add(timer, forMode: .common)
+        return .init { timer.invalidate() }
     }
 
     private static func systemRepeatTimings() -> RepeatTimings {
@@ -601,6 +622,12 @@ extension ButtonActionExecutor {
         case .arg0(.mouseButtonForward):
             postMouseButtonAction(mouseButton: .forward, targetBundleIdentifier: targetBundleIdentifier)
 
+        case let .arg1(.pinchZoom(magnification)):
+            guard magnification.isFinite, magnification != 0 else {
+                return
+            }
+            updatePinchZoom(magnification, targetBundleIdentifier: targetBundleIdentifier)
+
         case let .arg1(.run(command)):
             let task = Process()
             task.launchPath = "/bin/bash"
@@ -623,6 +650,41 @@ extension ButtonActionExecutor {
             try keySimulator.press(keys: keys, tap: .cgSessionEventTap)
             keySimulator.reset()
         }
+    }
+
+    private func updatePinchZoom(_ magnification: Double, targetBundleIdentifier: String?) {
+        if pinchZoomBegan, pinchZoomTarget != targetBundleIdentifier {
+            endPinchZoom()
+        }
+        if !pinchZoomBegan {
+            GestureEvent(zoomSource: nil, phase: .began, magnification: 0)?.send(to: postGestureEvent)
+            pinchZoomBegan = true
+            pinchZoomTarget = targetBundleIdentifier
+        }
+        GestureEvent(zoomSource: nil, phase: .changed, magnification: magnification)?.send(to: postGestureEvent)
+
+        // Keep wheel updates in one gesture: Chromium resets its pinch threshold
+        // at every began event, so isolated small pinches never zoom the page.
+        pinchZoomEndTimer?.invalidate()
+        pinchZoomGeneration &+= 1
+        let generation = pinchZoomGeneration
+        pinchZoomEndTimer = schedulePinchZoomEnd(0.3, false) { [weak self] in
+            guard let self, self.pinchZoomGeneration == generation else { return }
+            self.endPinchZoom()
+        }
+        if pinchZoomEndTimer == nil {
+            endPinchZoom()
+        }
+    }
+
+    private func endPinchZoom() {
+        pinchZoomGeneration &+= 1
+        pinchZoomEndTimer?.invalidate()
+        pinchZoomEndTimer = nil
+        guard pinchZoomBegan else { return }
+        GestureEvent(zoomSource: nil, phase: .ended, magnification: 0)?.send(to: postGestureEvent)
+        pinchZoomBegan = false
+        pinchZoomTarget = nil
     }
 
     private func postMouseButtonAction(
@@ -768,6 +830,8 @@ extension ButtonActionExecutor {
 
 extension ButtonActionExecutor: Deactivatable {
     func deactivate() {
+        // Serialize cleanup after any already-queued actions.
+        DispatchQueue.main.async { [self] in endPinchZoom() }
         for timer in runtimeState.repeatTimers.values {
             timer.invalidate()
         }

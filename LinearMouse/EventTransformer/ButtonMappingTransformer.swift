@@ -111,6 +111,7 @@ final class ButtonMappingTransformer: EventTransformer {
             $0.device?.highResolutionWheelNormalizationMultiplier
         },
         gestureTransformer: GestureButtonTransformer? = nil,
+        actionExecutor: ButtonActionExecutor? = nil,
         warpPointer: @escaping (CGPoint) -> Void = { CGWarpMouseCursorPosition($0) },
         eventSink: @escaping (CGEvent) -> Void = { $0.post(tap: .cgSessionEventTap) },
         syntheticClickScheduler: @escaping AsyncScheduler = ButtonMappingTransformer
@@ -124,7 +125,7 @@ final class ButtonMappingTransformer: EventTransformer {
         self.policy = policy
         self.scrollRecognizer = scrollRecognizer
         self.highResolutionWheelMultiplier = highResolutionWheelMultiplier
-        actionExecutor = .init(
+        self.actionExecutor = actionExecutor ?? .init(
             universalBackForward: universalBackForward,
             keySimulator: keySimulator
         )

@@ -107,7 +107,8 @@ extension Scheme.Buttons.Mapping.Action {
         case .arg0(.mouseWheelScrollUp), .arg0(.mouseWheelScrollDown),
              .arg0(.mouseWheelScrollLeft), .arg0(.mouseWheelScrollRight),
              .arg1(.mouseWheelScrollUp), .arg1(.mouseWheelScrollDown),
-             .arg1(.mouseWheelScrollLeft), .arg1(.mouseWheelScrollRight):
+             .arg1(.mouseWheelScrollLeft), .arg1(.mouseWheelScrollRight),
+             .arg1(.pinchZoom):
             true
         default:
             false
@@ -132,6 +133,9 @@ extension Scheme.Buttons.Mapping.Action {
             }
         }
         switch self {
+        case let .arg1(.pinchZoom(magnification)):
+            // Preserve the scale of sequential updates when combining wheel steps.
+            return .arg1(.pinchZoom(pow(1 + magnification, Double(count)) - 1))
         case .arg0(.mouseWheelScrollUp):
             return .arg1(.mouseWheelScrollUp(scaled(.auto)))
         case .arg0(.mouseWheelScrollDown):

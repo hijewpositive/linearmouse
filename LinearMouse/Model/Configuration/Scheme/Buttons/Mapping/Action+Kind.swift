@@ -4,6 +4,7 @@
 extension Scheme.Buttons.Mapping.Action {
     enum Kind: Equatable, Hashable {
         case arg0(Arg0)
+        case pinchZoom
         case run
         case mouseWheelScrollUp
         case mouseWheelScrollDown
@@ -16,6 +17,8 @@ extension Scheme.Buttons.Mapping.Action {
         switch self {
         case let .arg0(value):
             return .arg0(value)
+        case .arg1(.pinchZoom):
+            return .pinchZoom
         case .arg1(.run):
             return .run
         case .arg1(.mouseWheelScrollUp):
@@ -35,6 +38,8 @@ extension Scheme.Buttons.Mapping.Action {
         switch kind {
         case let .arg0(value):
             self = .arg0(value)
+        case .pinchZoom:
+            self = .arg1(.pinchZoom(0.1))
         case .run:
             self = .arg1(.run(""))
         case .mouseWheelScrollUp:

@@ -107,6 +107,8 @@ extension Scheme.Buttons.Mapping.Action.Arg0: CustomStringConvertible {
 extension Scheme.Buttons.Mapping.Action.Arg1: CustomStringConvertible {
     var description: String {
         switch self {
+        case let .pinchZoom(magnification):
+            return String(format: NSLocalizedString("Pinch Zoom: %g%%", comment: ""), magnification * 100)
         case let .run(command):
             return String(format: NSLocalizedString("Run: %@", comment: ""), command)
         case let .mouseWheelScrollUp(distance):

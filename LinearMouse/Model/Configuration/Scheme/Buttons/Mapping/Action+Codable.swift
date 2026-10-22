@@ -36,6 +36,7 @@ extension Scheme.Buttons.Mapping.Action: Codable {
 
 extension Scheme.Buttons.Mapping.Action.Arg1: Codable {
     enum CodingKeys: String, CodingKey {
+        case pinchZoom
         case run
 
         case mouseWheelScrollUp = "mouse.wheel.scrollUp"
@@ -47,6 +48,12 @@ extension Scheme.Buttons.Mapping.Action.Arg1: Codable {
 
     init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
+
+        if let magnification = try? container.decode(Double.self, forKey: .pinchZoom),
+           magnification.isFinite {
+            self = .pinchZoom(magnification)
+            return
+        }
 
         if let command = try? container.decode(String.self, forKey: .run) {
             self = .run(command)
@@ -83,6 +90,10 @@ extension Scheme.Buttons.Mapping.Action.Arg1: Codable {
 
     func encode(to encoder: Encoder) throws {
         switch self {
+        case let .pinchZoom(magnification):
+            var container = encoder.container(keyedBy: CodingKeys.self)
+            try container.encode(magnification, forKey: .pinchZoom)
+
         case let .run(command):
             var container = encoder.container(keyedBy: CodingKeys.self)
             try container.encode(command, forKey: .run)

@@ -1,6 +1,50 @@
 {
   "sourceLanguage" : "en",
   "strings" : {
+    "Pinch Zoom" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Pinch Zoom"
+          }
+        }
+      }
+    },
+    "Pinch Zoom: %g%%" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Pinch Zoom: %g%%"
+          }
+        }
+      }
+    },
+    "Magnification: %g%%" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Magnification: %g%%"
+          }
+        }
+      }
+    },
+    "Positive values zoom in; negative values zoom out." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Positive values zoom in; negative values zoom out."
+          }
+        }
+      }
+    },
     "- %@" : {
       "localizations" : {
         "af" : {

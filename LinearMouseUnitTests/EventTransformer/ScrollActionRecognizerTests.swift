@@ -7,6 +7,18 @@ import XCTest
 final class ScrollActionRecognizerTests: XCTestCase {
     private typealias Input = ScrollActionRecognizer.Input
 
+    func testPinchZoomCoalescingPreservesScaleInBothDirections() {
+        for magnification in [0.2, -0.2] {
+            let action = Scheme.Buttons.Mapping.Action.arg1(.pinchZoom(magnification))
+            XCTAssertTrue(action.repeatsWithScrollMovement)
+            guard case let .arg1(.pinchZoom(combined)) = action.coalescingScrollSteps(3) else {
+                return XCTFail("Expected pinch zoom")
+            }
+            XCTAssertEqual(1 + combined, pow(1 + magnification, 3), accuracy: 0.000001)
+        }
+    }
+
+
     func testHighResolutionInputPreservesBothAxisDirectionsAfterReversal() throws {
         for axis: Input.Axis in [.horizontal, .vertical] {
             for direction in [-1.0, 1.0] {

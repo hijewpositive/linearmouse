@@ -16,6 +16,20 @@ extension Binding where Value == Scheme.Buttons.Mapping.Action {
         )
     }
 
+    var pinchZoomPercentage: Binding<Double> {
+        Binding<Double>(
+            get: {
+                guard case let .arg1(.pinchZoom(magnification)) = wrappedValue else {
+                    return 10
+                }
+                return magnification * 100
+            },
+            set: {
+                wrappedValue = .arg1(.pinchZoom($0 / 100))
+            }
+        )
+    }
+
     var runCommand: Binding<String> {
         Binding<String>(
             get: {
@@ -86,6 +100,8 @@ extension Scheme.Buttons.Mapping.Action.Kind {
         switch self {
         case let .arg0(value):
             Text(value.description.capitalized)
+        case .pinchZoom:
+            Text("Pinch Zoom")
         case .run:
             Text("Run shell command…")
         case .mouseWheelScrollUp:

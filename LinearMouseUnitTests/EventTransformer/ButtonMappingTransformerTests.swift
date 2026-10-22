@@ -2,6 +2,7 @@
 // Copyright (c) 2021-2026 LinearMouse
 
 import CoreGraphics
+@testable import GestureKit
 import KeyKit
 @testable import LinearMouse
 import XCTest
@@ -2589,6 +2590,40 @@ final class ButtonMappingTransformerTests: XCTestCase {
         XCTAssertEqual(MouseEventView(dragged).mouseButton, .left)
         XCTAssertEqual(MouseEventView(up).mouseButton, .left)
         XCTAssertEqual(deferredEvents, [])
+    }
+
+    func testHorizontalWheelPinchZoomStreamsUpdatesWithoutCommandThrottle() throws {
+        for (direction, delta, magnification) in [
+            (Mapping.ScrollDirection.right, -1, 0.2), (.left, 1, -0.2)
+        ] {
+            var events = [CGEvent]()
+            let executor = ButtonActionExecutor(postGestureEvent: { events.append($0) })
+            let scheduler = ButtonMappingTestTimerScheduler()
+            let transformer = ButtonMappingTransformer(
+                mappings: [Mapping(trigger: .init(input: .wheel(direction)),
+                                   action: .arg1(.pinchZoom(magnification)))],
+                monotonicClock: { scheduler.now },
+                actionExecutor: executor
+            )
+            for index in 0 ..< 6 {
+                scheduler.advance(to: ms(UInt64(index) * 20))
+                XCTAssertNil(try transformer.transform(
+                    scrollEvent(horizontal: Int32(delta)), in: .init(device: nil)
+                ))
+            }
+            let completed = expectation(description: "Wheel actions dispatched")
+            DispatchQueue.main.async { completed.fulfill() }
+            wait(for: [completed], timeout: 1)
+            XCTAssertEqual(events.map { $0.getIntegerValueField(.gesturePhase) }, [1, 2, 2, 2, 2, 2, 2])
+            for event in events.dropFirst() {
+                XCTAssertEqual(event.getDoubleValueField(.gestureZoomValue), magnification, accuracy: 0.000001)
+            }
+            transformer.deactivate()
+            let ended = expectation(description: "Gesture ended on deactivation")
+            DispatchQueue.main.async { ended.fulfill() }
+            wait(for: [ended], timeout: 1)
+            XCTAssertEqual(events.last?.getIntegerValueField(.gesturePhase), 4)
+        }
     }
 
     func testHorizontalShortcutRepeatsWithoutIdleAcrossFreshRecognitionLanes() throws {

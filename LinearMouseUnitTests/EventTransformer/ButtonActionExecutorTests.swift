@@ -1,6 +1,8 @@
 // MIT License
 // Copyright (c) 2021-2026 LinearMouse
 
+import CoreGraphics
+@testable import GestureKit
 @testable import LinearMouse
 import XCTest
 
@@ -50,6 +52,99 @@ final class ButtonActionExecutorTests: XCTestCase {
         action: .arg0(.none),
         behavior: .repeat
     )
+
+    func testPinchZoomPostsCompleteNativeGestureInBothDirections() {
+        for magnification in [0.1, -0.2] {
+            var events = [CGEvent]()
+            let scheduler = ButtonActionTestTimerScheduler()
+            let executor = ButtonActionExecutor(
+                postGestureEvent: { events.append($0) },
+                schedulePinchZoomEnd: scheduler.schedule
+            )
+            executor.perform(.arg1(.pinchZoom(magnification)), targetBundleIdentifier: nil)
+            let completed = expectation(description: "Action dispatched")
+            DispatchQueue.main.async { completed.fulfill() }
+            wait(for: [completed], timeout: 1)
+            XCTAssertEqual(events.count, 2)
+            XCTAssertEqual(scheduler.timers.last?.interval, 0.3)
+            scheduler.timers.last.map(scheduler.fire)
+
+            XCTAssertEqual(
+                events.map { $0.getIntegerValueField(.gesturePhase) },
+                [CGSGesturePhase.began, .changed, .ended].map { Int64($0.rawValue) }
+            )
+            // CoreGraphics stores the gesture magnification at Float precision.
+            for (event, expected) in zip(events, [0, magnification, 0]) {
+                XCTAssertEqual(event.getDoubleValueField(.gestureZoomValue), expected, accuracy: 0.000001)
+            }
+            XCTAssertTrue(events.allSatisfy {
+                $0.getIntegerValueField(.gestureHIDType) == Int64(IOHIDEventType.zoom.rawValue)
+                    && $0.flags.isEmpty
+            })
+        }
+    }
+
+    func testPinchZoomBurstKeepsOneGestureUntilIdleAndRestartsAfterward() throws {
+        var events = [CGEvent]()
+        let scheduler = ButtonActionTestTimerScheduler()
+        let executor = ButtonActionExecutor(
+            postGestureEvent: { events.append($0) },
+            schedulePinchZoomEnd: scheduler.schedule
+        )
+        for _ in 0 ..< 6 {
+            executor.perform(.arg1(.pinchZoom(0.1)), targetBundleIdentifier: "com.google.Chrome")
+        }
+        drainMainQueue()
+        XCTAssertEqual(events.map { $0.getIntegerValueField(.gesturePhase) },
+                       [1, 2, 2, 2, 2, 2, 2])
+        XCTAssertTrue(scheduler.timers.dropLast().allSatisfy { !$0.isActive })
+        // Even a stale callback cannot terminate a newer update's gesture.
+        try XCTUnwrap(scheduler.timers.first).handler()
+        XCTAssertEqual(events.count, 7)
+        scheduler.fire(try XCTUnwrap(scheduler.timers.last))
+        XCTAssertEqual(events.last?.getIntegerValueField(.gesturePhase), 4)
+
+        executor.perform(.arg1(.pinchZoom(-0.1)), targetBundleIdentifier: "com.google.Chrome")
+        drainMainQueue()
+        XCTAssertEqual(events.suffix(2).map { $0.getIntegerValueField(.gesturePhase) }, [1, 2])
+        executor.deactivate()
+        drainMainQueue()
+        XCTAssertEqual(events.last?.getIntegerValueField(.gesturePhase), 4)
+        XCTAssertTrue(scheduler.timers.allSatisfy { !$0.isActive })
+    }
+
+    func testPinchZoomEndsBeforeChangingTargetApplication() {
+        var events = [CGEvent]()
+        let scheduler = ButtonActionTestTimerScheduler()
+        let executor = ButtonActionExecutor(
+            postGestureEvent: { events.append($0) },
+            schedulePinchZoomEnd: scheduler.schedule
+        )
+        executor.perform(.arg1(.pinchZoom(0.1)), targetBundleIdentifier: "com.google.Chrome")
+        executor.perform(.arg1(.pinchZoom(0.1)), targetBundleIdentifier: "com.apple.Safari")
+        drainMainQueue()
+        XCTAssertEqual(events.map { $0.getIntegerValueField(.gesturePhase) }, [1, 2, 4, 1, 2])
+        executor.deactivate()
+        drainMainQueue()
+    }
+
+    private func drainMainQueue() {
+        let completed = expectation(description: "Actions dispatched")
+        DispatchQueue.main.async { completed.fulfill() }
+        wait(for: [completed], timeout: 1)
+    }
+
+    func testPinchZoomIgnoresZeroAndNonFiniteMagnification() {
+        var events = [CGEvent]()
+        let executor = ButtonActionExecutor(postGestureEvent: { events.append($0) })
+        for magnification in [0, Double.infinity, Double.nan] {
+            executor.perform(.arg1(.pinchZoom(magnification)), targetBundleIdentifier: nil)
+        }
+        let completed = expectation(description: "Actions dispatched")
+        DispatchQueue.main.async { completed.fulfill() }
+        wait(for: [completed], timeout: 1)
+        XCTAssertTrue(events.isEmpty)
+    }
 
     func testRepeatSchedulesSystemDelayAndCancelsOnRelease() throws {
         let runtimeState = ButtonActionExecutor.RuntimeState()

@@ -1016,6 +1016,19 @@
       },
       "type": "object"
     },
+    "Scheme.Buttons.Mapping.PinchZoom": {
+      "additionalProperties": false,
+      "description": "Perform a native pinch zoom gesture. Positive magnification zooms in,\nnegative magnification zooms out (0.1 means 10%).",
+      "properties": {
+        "pinchZoom": {
+          "type": "number"
+        }
+      },
+      "required": [
+        "pinchZoom"
+      ],
+      "type": "object"
+    },
     "Scheme.Buttons.Mapping.PressAction": {
       "additionalProperties": false,
       "properties": {
@@ -1099,6 +1112,9 @@
         },
         {
           "$ref": "#/definitions/Scheme.Buttons.Mapping.SmartZoom"
+        },
+        {
+          "$ref": "#/definitions/Scheme.Buttons.Mapping.PinchZoom"
         },
         {
           "$ref": "#/definitions/Scheme.Buttons.Mapping.WindowMaximize"

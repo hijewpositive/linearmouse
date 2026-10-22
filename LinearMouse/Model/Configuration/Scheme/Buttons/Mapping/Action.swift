@@ -64,6 +64,8 @@ extension Scheme.Buttons.Mapping.Action {
     }
 
     enum Arg1: Equatable, Hashable {
+        case pinchZoom(Double)
+
         case run(String)
 
         case mouseWheelScrollUp(Scheme.Scrolling.Distance)

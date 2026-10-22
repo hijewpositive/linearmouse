@@ -7,6 +7,14 @@ import SwiftUI
 import XCTest
 
 final class ButtonMappingActionBindingTests: XCTestCase {
+    func testPinchZoomBindingConvertsPercentToMagnification() {
+        var action: Scheme.Buttons.Mapping.Action = .arg1(.pinchZoom(0.1))
+        let binding = makeActionBinding(action) { action = $0 }
+        XCTAssertEqual(binding.pinchZoomPercentage.wrappedValue, 10)
+        binding.pinchZoomPercentage.wrappedValue = -25
+        XCTAssertEqual(action, .arg1(.pinchZoom(-0.25)))
+    }
+
     func testKindBindingReadsExistingActionKind() {
         let binding = makeActionBinding(.arg1(.mouseWheelScrollLeft(.pixel(12))))
 

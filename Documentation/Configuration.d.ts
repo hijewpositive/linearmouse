@@ -839,6 +839,7 @@ declare namespace Scheme {
         | ShowDesktop
         | LookUpAndDataDetectors
         | SmartZoom
+        | PinchZoom
         | WindowMaximize
         | WindowMinimize
         | DisplayBrightnessUp
@@ -912,6 +913,13 @@ declare namespace Scheme {
        * @description Smart zoom.
        */
       type SmartZoom = "smartZoom";
+
+      /**
+       * @description Perform a native pinch zoom gesture. Positive magnification zooms in,
+       * negative magnification zooms out (0.1 means 10%).
+       */
+      type PinchZoom = { pinchZoom: number };
+
       /**
        * @description Window: Maximize.
        */

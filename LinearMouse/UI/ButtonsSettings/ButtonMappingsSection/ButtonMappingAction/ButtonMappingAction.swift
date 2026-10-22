@@ -13,6 +13,16 @@ struct ButtonMappingAction: View {
         switch action {
         case .arg0:
             EmptyView()
+        case .arg1(.pinchZoom):
+            Stepper(value: $action.pinchZoomPercentage, in: -90 ... 100, step: 5) {
+                Text(String(
+                    format: NSLocalizedString("Magnification: %g%%", comment: ""),
+                    $action.pinchZoomPercentage.wrappedValue
+                ))
+            }
+            Text("Positive values zoom in; negative values zoom out.")
+                .font(.caption)
+                .foregroundColor(.secondary)
         case .arg1(.run):
             ButtonMappingActionRun(action: $action)
         case .arg1(.mouseWheelScrollUp),
