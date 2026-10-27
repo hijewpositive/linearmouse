@@ -1603,6 +1603,17 @@
           "description": "The distance after rolling the wheel.",
           "title": "Scroll distance"
         },
+        "horizontalAction": {
+          "default": "scroll",
+          "description": "Pinch zoom uses the scrolling gesture handler without requiring a modifier key. Explicit button mappings take precedence.",
+          "enum": [
+            "scroll",
+            "pinchZoom",
+            "pinchZoomReversed"
+          ],
+          "title": "Default horizontal wheel action",
+          "type": "string"
+        },
         "modifiers": {
           "anyOf": [
             {

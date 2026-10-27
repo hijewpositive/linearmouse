@@ -88,6 +88,11 @@ class ScrollingSettingsState: ObservableObject {
 }
 
 extension ScrollingSettingsState {
+    var horizontalAction: Scheme.Scrolling.HorizontalAction {
+        get { mergedScheme.scrolling.horizontalAction ?? .scroll }
+        set { scheme.scrolling.horizontalAction = newValue }
+    }
+
     var reverseScrolling: Bool {
         get { mergedScheme.scrolling.reverse[direction] ?? false }
         set { scheme.scrolling.reverse[direction] = newValue }

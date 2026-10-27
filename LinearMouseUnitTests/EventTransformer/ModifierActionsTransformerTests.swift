@@ -1,6 +1,7 @@
 // MIT License
 // Copyright (c) 2021-2026 LinearMouse
 
+@testable import GestureKit
 import KeyKit
 @testable import LinearMouse
 import XCTest
@@ -56,6 +57,92 @@ private final class RecordingModifierKeySimulator: KeySimulating {
 }
 
 final class ModifierActionsTransformerTests: XCTestCase {
+    private func wheel(x: Int32 = 0, y: Int32 = 0, flags: CGEventFlags = []) throws -> CGEvent {
+        let event = try XCTUnwrap(CGEvent(
+            scrollWheelEvent2Source: nil, units: .pixel, wheelCount: 2,
+            wheel1: y, wheel2: x, wheel3: 0
+        ))
+        event.flags = flags
+        return event
+    }
+
+    func testDefaultHorizontalPinchMatchesModifierPinchForVariableMovement() throws {
+        var horizontalEvents: [CGEvent] = []
+        var verticalEvents: [CGEvent] = []
+        var endings: [() -> Void] = []
+        let horizontal = ModifierActionsTransformer(
+            modifiers: .init(), horizontalAction: .pinchZoom,
+            postGestureEvent: { horizontalEvents.append($0) },
+            scheduleEnd: { interval, handler in
+                XCTAssertEqual(interval, 1)
+                endings.append(handler)
+                return nil
+            }
+        )
+        let vertical = ModifierActionsTransformer(
+            modifiers: .init(vertical: .init(command: .pinchZoom)),
+            postGestureEvent: { verticalEvents.append($0) }
+        )
+        for points: Int32 in [1, 3, 20, -2, -12] {
+            XCTAssertNil(try horizontal.transform(wheel(x: points), in: .init(device: nil)))
+            XCTAssertNil(try vertical.transform(wheel(y: points, flags: .maskCommand), in: .init(device: nil)))
+        }
+        XCTAssertEqual(horizontalEvents.map { $0.getIntegerValueField(.gesturePhase) }, [1, 2, 2, 2, 2, 2])
+        XCTAssertEqual(horizontalEvents.map { $0.getDoubleValueField(.gestureZoomValue) },
+                       verticalEvents.map { $0.getDoubleValueField(.gestureZoomValue) })
+        // A superseded timeout cannot end an active stream.
+        endings.first?()
+        XCTAssertEqual(horizontalEvents.count, 6)
+        endings.last?()
+        XCTAssertEqual(horizontalEvents.last?.getIntegerValueField(.gesturePhase), 4)
+        horizontal.deactivate()
+        XCTAssertEqual(horizontalEvents.count, 7)
+        vertical.deactivate()
+    }
+
+    func testHorizontalPinchReversalAndVerticalScrollRemainIndependent() throws {
+        var events: [CGEvent] = []
+        let transformer = ModifierActionsTransformer(
+            modifiers: .init(), horizontalAction: .pinchZoomReversed,
+            postGestureEvent: { events.append($0) }, scheduleEnd: { _, _ in nil }
+        )
+        XCTAssertNil(try transformer.transform(wheel(x: 12), in: .init(device: nil)))
+        XCTAssertEqual(events.last!.getDoubleValueField(.gestureZoomValue), -0.06, accuracy: 0.000001)
+        XCTAssertNotNil(try transformer.transform(wheel(y: 5), in: .init(device: nil)))
+        XCTAssertEqual(events.last?.getIntegerValueField(.gesturePhase), 4)
+        XCTAssertNil(try transformer.transform(wheel(x: -4), in: .init(device: nil)))
+        XCTAssertEqual(events.last!.getDoubleValueField(.gestureZoomValue), 0.02, accuracy: 0.000001)
+        transformer.deactivate()
+        XCTAssertEqual(events.map { $0.getIntegerValueField(.gesturePhase) }, [1, 2, 4, 1, 2, 4])
+    }
+
+    func testHorizontalDefaultPreservesModifierOverridesAndSideScrolling() throws {
+        let normal = ModifierActionsTransformer(modifiers: .init())
+        XCTAssertNotNil(try normal.transform(wheel(x: 8), in: .init(device: nil)))
+        var events: [CGEvent] = []
+        let transformer = ModifierActionsTransformer(
+            modifiers: .init(horizontal: .init(command: .ignore)), horizontalAction: .pinchZoom,
+            postGestureEvent: { events.append($0) }, scheduleEnd: { _, _ in nil }
+        )
+        XCTAssertNotNil(try transformer.transform(wheel(x: 8, flags: .maskCommand), in: .init(device: nil)))
+        XCTAssertTrue(events.isEmpty)
+        XCTAssertNil(try transformer.transform(wheel(x: 8), in: .init(device: nil)))
+        transformer.deactivate()
+    }
+
+    func testHorizontalActionConfigurationRoundTripAndInheritance() throws {
+        var base = Scheme.Scrolling(horizontalAction: .pinchZoom)
+        Scheme.Scrolling().merge(into: &base)
+        XCTAssertEqual(base.horizontalAction, .pinchZoom)
+        Scheme.Scrolling(horizontalAction: .scroll).merge(into: &base)
+        XCTAssertEqual(base.horizontalAction, .scroll)
+        for action in Scheme.Scrolling.HorizontalAction.allCases {
+            let source = Scheme.Scrolling(horizontalAction: action)
+            XCTAssertEqual(try JSONDecoder().decode(Scheme.Scrolling.self, from: JSONEncoder().encode(source)), source)
+        }
+        XCTAssertNil(try JSONDecoder().decode(Scheme.Scrolling.self, from: Data("{}".utf8)).horizontalAction)
+    }
+
     /// A layout where zoom-out is not on the US minus key, and zoom-in needs Shift.
     private static func zoomShortcut(zoomIn: Bool) -> KeyEquivalentResolver.Shortcut? {
         .init(keyCode: zoomIn ? 24 : 44, modifierFlags: zoomIn ? [.maskCommand, .maskShift] : .maskCommand)

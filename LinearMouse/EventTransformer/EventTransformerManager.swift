@@ -940,10 +940,12 @@ class EventTransformerManager {
         // modifier actions or smoothing can consume or reshape it.
         eventTransformer.append(ButtonMappingScrollRecordingTransformer())
 
-        if let modifiers = scheme.scrolling.$modifiers,
-           hasSmoothedScrolling {
+        let hasScrollingActions = scheme.scrolling.$modifiers != nil ||
+            (scheme.scrolling.horizontalAction ?? .scroll) != .scroll
+        if hasScrollingActions, hasSmoothedScrolling {
             eventTransformer.append(ModifierActionsTransformer(
-                modifiers: modifiers,
+                modifiers: scheme.scrolling.modifiers,
+                horizontalAction: scheme.scrolling.horizontalAction ?? .scroll,
                 scrollThrottle: scrollThrottle(for: device),
                 scrollGesture: scrollGesture
             ))
@@ -1012,10 +1014,10 @@ class EventTransformerManager {
             }
         }
 
-        if let modifiers = scheme.scrolling.$modifiers,
-           !hasSmoothedScrolling {
+        if hasScrollingActions, !hasSmoothedScrolling {
             eventTransformer.append(ModifierActionsTransformer(
-                modifiers: modifiers,
+                modifiers: scheme.scrolling.modifiers,
+                horizontalAction: scheme.scrolling.horizontalAction ?? .scroll,
                 scrollThrottle: scrollThrottle(for: device),
                 scrollGesture: scrollGesture
             ))

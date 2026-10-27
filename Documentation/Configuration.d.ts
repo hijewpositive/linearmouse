@@ -182,6 +182,13 @@ declare namespace Scheme {
 
   type Scrolling = {
     /**
+     * @title Default horizontal wheel action
+     * @description Pinch zoom uses the scrolling gesture handler without requiring a modifier key. Explicit button mappings take precedence.
+     * @default "scroll"
+     */
+    horizontalAction?: "scroll" | "pinchZoom" | "pinchZoomReversed";
+
+    /**
      * @title Reverse scrolling
      */
     reverse?: Scrolling.Bidirectional<boolean>;

@@ -12,6 +12,18 @@ struct ScrollingSettings: View {
                 Header()
 
                 Form {
+                    if state.direction == .horizontal {
+                        Section(header: Text("Default Action")) {
+                            Picker("Horizontal wheel", selection: $state.horizontalAction) {
+                                Text("Side-scrolling").tag(Scheme.Scrolling.HorizontalAction.scroll)
+                                Text("Pinch zoom").tag(Scheme.Scrolling.HorizontalAction.pinchZoom)
+                                Text("Pinch zoom (reversed)").tag(Scheme.Scrolling.HorizontalAction.pinchZoomReversed)
+                            }
+                            .modifier(PickerViewModifier())
+                        }
+                        .modifier(SectionViewModifier())
+                    }
+
                     ReverseScrollingSection()
 
                     if state.showsHighResolutionWheelControl {

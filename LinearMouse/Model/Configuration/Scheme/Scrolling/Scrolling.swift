@@ -5,6 +5,11 @@ import Foundation
 
 extension Scheme {
     struct Scrolling: Codable, Equatable, ImplicitInitable {
+        enum HorizontalAction: String, Codable, CaseIterable {
+            case scroll, pinchZoom, pinchZoomReversed
+        }
+
+        var horizontalAction: HorizontalAction?
         @ImplicitOptional var reverse: Bidirectional<Bool>
         @ImplicitOptional var distance: Bidirectional<Distance>
         @ImplicitOptional var acceleration: Bidirectional<Decimal>
@@ -15,6 +20,7 @@ extension Scheme {
         init() {}
 
         init(
+            horizontalAction: HorizontalAction? = nil,
             reverse: Bidirectional<Bool>? = nil,
             distance: Bidirectional<Distance>? = nil,
             acceleration: Bidirectional<Decimal>? = nil,
@@ -22,6 +28,7 @@ extension Scheme {
             smoothed: Bidirectional<Smoothed>? = nil,
             modifiers: Bidirectional<Modifiers>? = nil
         ) {
+            self.horizontalAction = horizontalAction
             $reverse = reverse
             $distance = distance
             $acceleration = acceleration
@@ -34,6 +41,7 @@ extension Scheme {
 
 extension Scheme.Scrolling {
     func merge(into scrolling: inout Self) {
+        if let horizontalAction { scrolling.horizontalAction = horizontalAction }
         $reverse?.merge(into: &scrolling.reverse)
         $distance?.merge(into: &scrolling.distance)
         $acceleration?.merge(into: &scrolling.acceleration)
